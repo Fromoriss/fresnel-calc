@@ -9,10 +9,10 @@
 @media (prefers-color-scheme:dark){:root{--bg:#0f1a20;--panel:#16252d;--ink:#e3edf1;--muted:#97aab3;--line:#2a3d47;--accent:#4cc3e0;--z1:rgba(76,195,224,.32);--z2:rgba(76,195,224,.18);--z3:rgba(76,195,224,.10);--warn:#f0a070;color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
-main{max-width:980px;margin:0 auto;padding:28px 18px 48px}
+main{max-width:1120px;margin:0 auto;padding:28px 18px 48px}
 h1{font-size:1.6rem;margin:0 0 4px}
 .lead{color:var(--muted);margin:0 0 22px;max-width:62ch}
-.grid{display:grid;grid-template-columns:260px 1fr;gap:18px}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start}
 @media (max-width:760px){.grid{grid-template-columns:1fr}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
 label{display:block;font-size:.9rem;color:var(--muted);margin-top:12px}
@@ -30,7 +30,27 @@ table{border-collapse:collapse;width:100%;margin-top:16px;font-variant-numeric:t
 th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-size:.92rem}
 th{color:var(--muted);font-weight:600}
 .note{color:var(--muted);font-size:.88rem;margin-top:14px}
+.chk{display:flex;align-items:center;gap:8px;color:var(--ink)}
+.chk input{width:auto;margin:0}
 .err{color:var(--warn);min-height:1.4em;margin-top:10px;font-size:.9rem}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+h2{font-size:1.05rem;margin:0 0 12px}
+.fx{border:1px solid var(--accent);border-radius:8px;padding:10px 12px;margin-top:10px}
+.fx:first-of-type{margin-top:0}
+.fx p{margin:0 0 4px;font-size:.85rem;color:var(--muted)}
+.fx code{display:block;overflow-x:auto;font:1.05rem "Cambria Math","STIX Two Math","Times New Roman",serif;padding:2px 0}
+.fx small{display:block;margin-top:4px;color:var(--muted);font-size:.82rem;font-variant-numeric:tabular-nums}
+.legend{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.legend li{display:flex;gap:12px;align-items:flex-start}
+.sw{flex:none;display:inline-block;width:36px;height:14px;margin-top:5px;border-radius:2px}
+.sw-ant{border-left:3px solid var(--accent);border-radius:0}
+.sw-los{height:0;border-top:2px solid var(--accent)}
+.sw-z1{background:var(--z1);border:1px solid var(--line)}
+.sw-z2{background:var(--z2);border:1px solid var(--line)}
+.sw-z3{background:var(--z3);border:1px solid var(--line)}
+.sw-dash{height:0;border-top:2px dashed var(--warn)}
+.sw-gr{height:0;border-top:1px solid var(--muted)}
+.sw-r{height:14px;width:0;border-left:2px solid var(--ink);margin-left:16px;margin-right:18px}
 </style>
 </head>
 <body>
@@ -38,8 +58,9 @@ th{color:var(--muted);font-weight:600}
 <h1>Калькулятор зон Френеля</h1>
 <p class="lead">Розрахунок радіуса зон Френеля на радіотрасі між передавальною та приймальною антенами.</p>
 <div class="grid">
+  <div class="col">
   <section class="panel" aria-label="Вхідні дані">
-    <label for="D">Відстань між антенами, км</label>
+    <label for="D">Відстань між антенами (r₀ + ρ₀), км</label>
     <input id="D" type="number" value="10" min="0.01" step="any">
     <label for="f">Частота</label>
     <div class="row">
@@ -52,25 +73,52 @@ th{color:var(--muted);font-weight:600}
     <input id="h1" type="number" value="30" min="0" step="any">
     <label for="h2">Висота приймальної антени, м</label>
     <input id="h2" type="number" value="30" min="0" step="any">
+    <label class="chk"><input id="ref" type="checkbox" checked> Враховувати тропосферну рефракцію</label>
     <div class="err" id="err" role="alert"></div>
   </section>
+  <section class="panel" aria-label="Формули">
+    <h2>Формули</h2>
+    <div class="fx"><p>Довжина хвилі</p><code>λ = c / f</code><small id="s1"></small></div>
+    <div class="fx"><p>Радіус n-ї зони в довільній точці траси</p><code>R<sub>n</sub> = √( n · λ · r₀ · ρ₀ / (r₀ + ρ₀) )</code><small>r₀ і ρ₀ — відстані від точки траси до передавача та приймача</small></div>
+    <div class="fx"><p>Радіус у середині траси (там зона найширша)</p><code>R<sub>n</sub> = ½ · √( n · λ · (r₀ + ρ₀) )</code><small id="s3"></small></div>
+    <div class="fx"><p>Мінімум вільного простору</p><code>R₆₀ = 0,6 · R₁</code><small id="s4"></small></div>
+    <div class="fx"><p>Лінія прямої видимості</p><code>h(x) = h₁ + (h₂ − h₁) · x / (r₀ + ρ₀)</code><small>x — відстань від передавача, h₁ і h₂ — висоти антен</small></div>
+    <div class="fx"><p>Дальність прямої видимості</p><code>r<sub>пр.в.</sub> [км] = 4,12 · ( √h₁ [м] + √h₂ [м] )</code><small>4,12 — з урахуванням тропосферної рефракції, без неї 3,57</small><small id="s5"></small></div>
+  </section>
+</div>
+<div class="col">
   <section class="panel" aria-label="Результат">
     <canvas id="cv" role="img" aria-label="Профіль траси із зонами Френеля"></canvas>
     <div class="res">
       <div><b id="rl">—</b><span>довжина хвилі λ, м</span></div>
       <div><b id="r1">—</b><span>радіус 1-ї зони в середині траси, м</span></div>
       <div><b id="r60">—</b><span>60% першої зони, м (мінімум вільного простору)</span></div>
+      <div><b id="rpv">—</b><span>дальність прямої видимості, км</span></div>
     </div>
+    <p class="note" id="losnote"></p>
     <table>
       <thead><tr><th>Зона n</th><th>Радіус у середині траси, м</th></tr></thead>
       <tbody id="tb"></tbody>
     </table>
-    <p class="note">Rₙ = √(n · λ · d₁ · d₂ / (d₁ + d₂)), де d₁ і d₂ — відстані від точки до антен. Масштаби осей різні: по вертикалі профіль розтягнуто, щоб зони було видно.</p>
+  </section>
+  <section class="panel" aria-label="Пояснення до малюнка">
+    <h2>Пояснення до малюнка</h2>
+    <ul class="legend">
+      <li><i class="sw sw-ant"></i><span><b>Пер.</b> і <b>Пр.</b> — передавальна та приймальна антени. Вертикальні лінії — їхня висота над землею (h₁ і h₂).</span></li>
+      <li><i class="sw sw-los"></i><span>Суцільна лінія — пряма видимість між антенами.</span></li>
+      <li><i class="sw sw-z1"></i><span>Темна заливка — перша зона Френеля. Саме в ній проходить основна частина енергії хвилі.</span></li>
+      <li><i class="sw sw-z2"></i><span>Середня заливка — друга зона Френеля.</span></li>
+      <li><i class="sw sw-z3"></i><span>Світла заливка — третя та наступні зони.</span></li>
+      <li><i class="sw sw-dash"></i><span>Пунктир — межа 60% першої зони. У ній не повинно бути перешкод.</span></li>
+      <li><i class="sw sw-gr"></i><span>Нижня горизонтальна лінія — земля (висота 0 м).</span></li>
+      <li><i class="sw sw-r"></i><span><b>R₁</b> — радіус першої зони в середині траси, де зона найширша.</span></li>
+    </ul>
+    <p class="note">Горизонтальна вісь — відстань від передавача, км. Вертикальна — висота над землею, м. Масштаби осей різні: по вертикалі профіль розтягнуто, щоб зони було видно. У формулах r₀ і ρ₀ — відстані від точки траси до передавача й приймача; в середині траси r₀ = ρ₀ = (r₀ + ρ₀) / 2.</p>
   </section>
 </div>
 </main>
 <script>
-const C = 299792458; // швидкість світла, м/с
+const C = 3e8; // швидкість світла, м/с
 
 // Радіус n-ї зони Френеля (усі величини в метрах)
 function fresnelRadius(n, lambda, d1, d2) {
@@ -79,6 +127,7 @@ function fresnelRadius(n, lambda, d1, d2) {
 
 const $ = id => document.getElementById(id);
 const fmt = v => v.toLocaleString("uk-UA", {maximumFractionDigits: 2});
+const fmt3 = v => v.toLocaleString("uk-UA", {maximumFractionDigits: 3});
 let state = null;
 
 function readInputs() {
@@ -101,7 +150,20 @@ function update() {
   state = s;
   const mid = s.D / 2;
   const r1 = fresnelRadius(1, s.lambda, mid, mid);
-  $("rl").textContent = fmt(s.lambda);
+  $("rl").textContent = fmt3(s.lambda);
+  const unit = $("u").options[$("u").selectedIndex].text;
+  $("s1").textContent = `c = 3 · 10⁸ м/с, f = ${$("f").value} ${unit} → λ = ${fmt3(s.lambda)} м`;
+  $("s3").textContent = `n = 1, r₀ + ρ₀ = ${fmt(s.D)} м: R₁ = ½ · √(1 · ${fmt3(s.lambda)} · ${fmt(s.D)}) = ${fmt(r1)} м`;
+  $("s4").textContent = `0,6 · ${fmt(r1)} = ${fmt(0.6 * r1)} м`;
+  const k = $("ref").checked ? 4.12 : 3.57;
+  const rpv = k * (Math.sqrt(s.h1) + Math.sqrt(s.h2));
+  $("rpv").textContent = fmt(rpv);
+  $("s5").textContent = `${fmt(k)} · (√${fmt(s.h1)} + √${fmt(s.h2)}) = ${fmt(rpv)} км`;
+  const dk = s.D / 1000, ok = dk <= rpv;
+  $("losnote").style.color = ok ? "" : "var(--warn)";
+  $("losnote").textContent = ok
+    ? `Відстань ${fmt(dk)} км не перевищує дальність прямої видимості ${fmt(rpv)} км.`
+    : `Відстань ${fmt(dk)} км перевищує дальність прямої видимості ${fmt(rpv)} км: трасу закриває кривизна Землі.`;
   $("r1").textContent = fmt(r1);
   $("r60").textContent = fmt(0.6 * r1);
   $("tb").innerHTML = Array.from({length: s.n}, (_, i) =>
@@ -166,9 +228,14 @@ function draw() {
   g.fillStyle = col("--ink"); g.textAlign = "left";
   g.fillText("Пер.", X(0) + 6, Y(h1) - 6);
   g.textAlign = "right"; g.fillText("Пр.", X(D) - 6, Y(h2) - 6);
+  // радіус першої зони в середині траси
+  const xm = D / 2, rm = R(1, xm);
+  g.strokeStyle = col("--ink"); g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(X(xm), Y(los(xm))); g.lineTo(X(xm), Y(los(xm) + rm)); g.stroke();
+  g.textAlign = "left"; g.fillText("R₁", X(xm) + 6, Y(los(xm) + rm / 2) + 4);
 }
 
-["D", "f", "u", "n", "h1", "h2"].forEach(id => $(id).addEventListener("input", update));
+["D", "f", "u", "n", "h1", "h2", "ref"].forEach(id => $(id).addEventListener("input", update));
 window.addEventListener("resize", draw);
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
 update();
