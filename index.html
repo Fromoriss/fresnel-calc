@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Калькулятор зон Френеля</title>
+<style>
+:root{--bg:#eef2f4;--panel:#fff;--ink:#14232b;--muted:#5b6b73;--line:#cfd8dc;--accent:#0b6e8a;--z1:rgba(11,110,138,.30);--z2:rgba(11,110,138,.17);--z3:rgba(11,110,138,.10);--warn:#b4532a;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1a20;--panel:#16252d;--ink:#e3edf1;--muted:#97aab3;--line:#2a3d47;--accent:#4cc3e0;--z1:rgba(76,195,224,.32);--z2:rgba(76,195,224,.18);--z3:rgba(76,195,224,.10);--warn:#f0a070;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:28px 18px 48px}
+h1{font-size:1.6rem;margin:0 0 4px}
+.lead{color:var(--muted);margin:0 0 22px;max-width:62ch}
+.grid{display:grid;grid-template-columns:260px 1fr;gap:18px}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+label{display:block;font-size:.9rem;color:var(--muted);margin-top:12px}
+label:first-child{margin-top:0}
+.row{display:flex;gap:8px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+select{width:auto}
+canvas{width:100%;height:320px;display:block}
+.res{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px}
+.res div{border-top:2px solid var(--accent);padding-top:6px}
+.res b{display:block;font-size:1.35rem;font-variant-numeric:tabular-nums}
+.res span{font-size:.85rem;color:var(--muted)}
+table{border-collapse:collapse;width:100%;margin-top:16px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-size:.92rem}
+th{color:var(--muted);font-weight:600}
+.note{color:var(--muted);font-size:.88rem;margin-top:14px}
+.err{color:var(--warn);min-height:1.4em;margin-top:10px;font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+<h1>Калькулятор зон Френеля</h1>
+<p class="lead">Розрахунок радіуса зон Френеля на радіотрасі між передавальною та приймальною антенами.</p>
+<div class="grid">
+  <section class="panel" aria-label="Вхідні дані">
+    <label for="D">Відстань між антенами, км</label>
+    <input id="D" type="number" value="10" min="0.01" step="any">
+    <label for="f">Частота</label>
+    <div class="row">
+      <input id="f" type="number" value="2.4" min="0.001" step="any">
+      <select id="u" aria-label="Одиниця частоти"><option value="1000">ГГц</option><option value="1">МГц</option></select>
+    </div>
+    <label for="n">Кількість зон для показу (1–5)</label>
+    <input id="n" type="number" value="3" min="1" max="5" step="1">
+    <label for="h1">Висота передавальної антени, м</label>
+    <input id="h1" type="number" value="30" min="0" step="any">
+    <label for="h2">Висота приймальної антени, м</label>
+    <input id="h2" type="number" value="30" min="0" step="any">
+    <div class="err" id="err" role="alert"></div>
+  </section>
+  <section class="panel" aria-label="Результат">
+    <canvas id="cv" role="img" aria-label="Профіль траси із зонами Френеля"></canvas>
+    <div class="res">
+      <div><b id="rl">—</b><span>довжина хвилі λ, м</span></div>
+      <div><b id="r1">—</b><span>радіус 1-ї зони в середині траси, м</span></div>
+      <div><b id="r60">—</b><span>60% першої зони, м (мінімум вільного простору)</span></div>
+    </div>
+    <table>
+      <thead><tr><th>Зона n</th><th>Радіус у середині траси, м</th></tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+    <p class="note">Rₙ = √(n · λ · d₁ · d₂ / (d₁ + d₂)), де d₁ і d₂ — відстані від точки до антен. Масштаби осей різні: по вертикалі профіль розтягнуто, щоб зони було видно.</p>
+  </section>
+</div>
+</main>
+<script>
+const C = 299792458; // швидкість світла, м/с
+
+// Радіус n-ї зони Френеля (усі величини в метрах)
+function fresnelRadius(n, lambda, d1, d2) {
+  return Math.sqrt(n * lambda * d1 * d2 / (d1 + d2));
+}
+
+const $ = id => document.getElementById(id);
+const fmt = v => v.toLocaleString("uk-UA", {maximumFractionDigits: 2});
+let state = null;
+
+function readInputs() {
+  const D = parseFloat($("D").value) * 1000;
+  const f = parseFloat($("f").value) * parseFloat($("u").value) * 1e6;
+  const n = Math.round(parseFloat($("n").value));
+  const h1 = parseFloat($("h1").value);
+  const h2 = parseFloat($("h2").value);
+  if (!(D > 0)) return "Вкажіть відстань більшу за нуль.";
+  if (!(f > 0)) return "Вкажіть частоту більшу за нуль.";
+  if (!(n >= 1 && n <= 5)) return "Кількість зон має бути від 1 до 5.";
+  if (!(h1 >= 0 && h2 >= 0)) return "Висоти антен мають бути невід’ємними.";
+  return {D, f, n, h1, h2, lambda: C / f};
+}
+
+function update() {
+  const s = readInputs();
+  if (typeof s === "string") { $("err").textContent = s; return; }
+  $("err").textContent = "";
+  state = s;
+  const mid = s.D / 2;
+  const r1 = fresnelRadius(1, s.lambda, mid, mid);
+  $("rl").textContent = fmt(s.lambda);
+  $("r1").textContent = fmt(r1);
+  $("r60").textContent = fmt(0.6 * r1);
+  $("tb").innerHTML = Array.from({length: s.n}, (_, i) =>
+    `<tr><td>${i + 1}</td><td>${fmt(fresnelRadius(i + 1, s.lambda, mid, mid))}</td></tr>`).join("");
+  draw();
+}
+
+function draw() {
+  if (!state) return;
+  const {D, n, h1, h2, lambda} = state;
+  const cv = $("cv"), dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext("2d");
+  g.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement);
+  const col = n => css.getPropertyValue(n).trim();
+  const los = x => h1 + (h2 - h1) * x / D;
+  const R = (k, x) => fresnelRadius(k, lambda, x, D - x);
+  const Rmax = R(n, D / 2);
+  const ymin = Math.min(0, Math.min(h1, h2) - Rmax), ymax = Math.max(h1, h2) + Rmax;
+  const pad = {l: 46, r: 14, t: 12, b: 28};
+  const X = x => pad.l + x / D * (W - pad.l - pad.r);
+  const Y = y => H - pad.b - (y - ymin) / (ymax - ymin) * (H - pad.t - pad.b);
+  const N = 120;
+
+  g.font = "12px system-ui, sans-serif";
+  g.fillStyle = col("--muted"); g.strokeStyle = col("--line"); g.lineWidth = 1;
+  // осі: вертикаль (м) і горизонталь (км)
+  for (let i = 0; i <= 4; i++) {
+    const y = ymin + (ymax - ymin) * i / 4;
+    g.beginPath(); g.moveTo(pad.l, Y(y)); g.lineTo(W - pad.r, Y(y)); g.stroke();
+    g.textAlign = "right"; g.fillText(Math.round(y), pad.l - 6, Y(y) + 4);
+  }
+  g.textAlign = "center";
+  for (let i = 0; i <= 4; i++) g.fillText(fmt(D / 1000 * i / 4), X(D * i / 4), H - 8);
+
+  // земля (рівень 0)
+  g.strokeStyle = col("--muted"); g.beginPath(); g.moveTo(pad.l, Y(0)); g.lineTo(W - pad.r, Y(0)); g.stroke();
+
+  // зони: від найбільшої до найменшої
+  const fills = ["--z1", "--z2", "--z3", "--z3", "--z3"];
+  for (let k = n; k >= 1; k--) {
+    g.fillStyle = col(fills[k - 1]);
+    g.beginPath();
+    for (let i = 0; i <= N; i++) { const x = D * i / N; g[i ? "lineTo" : "moveTo"](X(x), Y(los(x) + R(k, x))); }
+    for (let i = N; i >= 0; i--) { const x = D * i / N; g.lineTo(X(x), Y(los(x) - R(k, x))); }
+    g.closePath(); g.fill();
+  }
+  // 60% першої зони
+  g.strokeStyle = col("--warn"); g.setLineDash([5, 4]);
+  [1, -1].forEach(sg => {
+    g.beginPath();
+    for (let i = 0; i <= N; i++) { const x = D * i / N; g[i ? "lineTo" : "moveTo"](X(x), Y(los(x) + sg * 0.6 * R(1, x))); }
+    g.stroke();
+  });
+  g.setLineDash([]);
+  // пряма видимості й антени
+  g.strokeStyle = col("--accent"); g.lineWidth = 2;
+  g.beginPath(); g.moveTo(X(0), Y(h1)); g.lineTo(X(D), Y(h2)); g.stroke();
+  g.beginPath(); g.moveTo(X(0), Y(0)); g.lineTo(X(0), Y(h1)); g.moveTo(X(D), Y(0)); g.lineTo(X(D), Y(h2)); g.stroke();
+  g.fillStyle = col("--ink"); g.textAlign = "left";
+  g.fillText("Пер.", X(0) + 6, Y(h1) - 6);
+  g.textAlign = "right"; g.fillText("Пр.", X(D) - 6, Y(h2) - 6);
+}
+
+["D", "f", "u", "n", "h1", "h2"].forEach(id => $(id).addEventListener("input", update));
+window.addEventListener("resize", draw);
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+update();
+</script>
+</body>
+</html>
