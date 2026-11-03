@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Калькулятор зон Френеля</title>
 <style>
-:root{--bg:#eef2f4;--panel:#fff;--ink:#14232b;--muted:#5b6b73;--line:#cfd8dc;--accent:#0b6e8a;--z1:rgba(11,110,138,.30);--z2:rgba(11,110,138,.17);--z3:rgba(11,110,138,.10);--warn:#b4532a;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#0f1a20;--panel:#16252d;--ink:#e3edf1;--muted:#97aab3;--line:#2a3d47;--accent:#4cc3e0;--z1:rgba(76,195,224,.32);--z2:rgba(76,195,224,.18);--z3:rgba(76,195,224,.10);--warn:#f0a070;color-scheme:dark}}
+:root{--bg:#eef2f4;--panel:#fff;--ink:#14232b;--muted:#5b6b73;--line:#cfd8dc;--accent:#0b6e8a;--z1:rgba(11,110,138,.30);--z2:rgba(11,110,138,.17);--z3:rgba(11,110,138,.10);--warn:#b4532a;--ground:#3f7d20;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1a20;--panel:#16252d;--ink:#e3edf1;--muted:#97aab3;--line:#2a3d47;--accent:#4cc3e0;--z1:rgba(76,195,224,.32);--z2:rgba(76,195,224,.18);--z3:rgba(76,195,224,.10);--warn:#f0a070;--ground:#9ad45a;color-scheme:dark}}
 *{box-sizing:border-box}
+a{color:var(--accent)}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
 main{max-width:1120px;margin:0 auto;padding:28px 18px 48px}
 h1{font-size:1.6rem;margin:0 0 4px}
@@ -49,7 +50,7 @@ h2{font-size:1.05rem;margin:0 0 12px}
 .sw-z2{background:var(--z2);border:1px solid var(--line)}
 .sw-z3{background:var(--z3);border:1px solid var(--line)}
 .sw-dash{height:0;border-top:2px dashed var(--warn)}
-.sw-gr{height:0;border-top:1px solid var(--muted)}
+.sw-gr{height:0;border-top:4px solid var(--ground)}
 .sw-r{height:14px;width:0;border-left:2px solid var(--ink);margin-left:16px;margin-right:18px}
 </style>
 </head>
@@ -57,6 +58,7 @@ h2{font-size:1.05rem;margin:0 0 12px}
 <main>
 <h1>Калькулятор зон Френеля</h1>
 <p class="lead">Розрахунок радіуса зон Френеля на радіотрасі між передавальною та приймальною антенами.</p>
+<p class="lead"><a href="obstacles.html">Перешкоди між антенами →</a></p>
 <div class="grid">
   <div class="col">
   <section class="panel" aria-label="Вхідні дані">
@@ -110,7 +112,7 @@ h2{font-size:1.05rem;margin:0 0 12px}
       <li><i class="sw sw-z2"></i><span>Середня заливка — друга зона Френеля.</span></li>
       <li><i class="sw sw-z3"></i><span>Світла заливка — третя та наступні зони.</span></li>
       <li><i class="sw sw-dash"></i><span>Пунктир — межа 60% першої зони. У ній не повинно бути перешкод.</span></li>
-      <li><i class="sw sw-gr"></i><span>Нижня горизонтальна лінія — земля (висота 0 м).</span></li>
+      <li><i class="sw sw-gr"></i><span>Товста зелена лінія — земля (висота 0 м).</span></li>
       <li><i class="sw sw-r"></i><span><b>R₁</b> — радіус першої зони в середині траси, де зона найширша.</span></li>
     </ul>
     <p class="note">Горизонтальна вісь — відстань від передавача, км. Вертикальна — висота над землею, м. Масштаби осей різні: по вертикалі профіль розтягнуто, щоб зони було видно. У формулах r₀ і ρ₀ — відстані від точки траси до передавача й приймача; в середині траси r₀ = ρ₀ = (r₀ + ρ₀) / 2.</p>
@@ -202,7 +204,9 @@ function draw() {
   for (let i = 0; i <= 4; i++) g.fillText(fmt(D / 1000 * i / 4), X(D * i / 4), H - 8);
 
   // земля (рівень 0)
-  g.strokeStyle = col("--muted"); g.beginPath(); g.moveTo(pad.l, Y(0)); g.lineTo(W - pad.r, Y(0)); g.stroke();
+  g.strokeStyle = col("--ground"); g.lineWidth = 4; g.lineCap = "round";
+  g.beginPath(); g.moveTo(pad.l, Y(0)); g.lineTo(W - pad.r, Y(0)); g.stroke();
+  g.lineWidth = 1; g.lineCap = "butt";
 
   // зони: від найбільшої до найменшої
   const fills = ["--z1", "--z2", "--z3", "--z3", "--z3"];
